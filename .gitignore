@@ -10,6 +10,7 @@ build
 *.class
 **/dependency-reduced-pom.xml
 dist.sh
+.github/
 
 ### STS ###
 .apt_generated
