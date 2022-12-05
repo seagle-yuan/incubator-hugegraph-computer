@@ -1,5 +1,4 @@
 /*
- * Copyright 2017 HugeGraph Authors
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with this
@@ -22,9 +21,11 @@ package org.apache.hugegraph.computer.algorithm;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hugegraph.computer.core.config.ComputerOptions;
 import org.apache.hugegraph.computer.core.config.Config;
@@ -38,17 +39,20 @@ import org.apache.hugegraph.testutil.Assert;
 import org.apache.hugegraph.util.Log;
 import org.slf4j.Logger;
 
+import com.google.common.collect.Sets;
+
 public class AlgorithmTestBase extends UnitTestBase {
 
     public static final Logger LOG = Log.logger(AlgorithmTestBase.class);
 
-    public static void runAlgorithm(String algorithmParams, String ... options)
-                                    throws InterruptedException {
+    public static void runAlgorithm(String algorithmParams, String... options)
+            throws InterruptedException {
         final Logger log = Log.logger(AlgorithmTestBase.class);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         CountDownLatch countDownLatch = new CountDownLatch(2);
         Throwable[] exceptions = new Throwable[2];
-
+        AtomicReference<MasterService> masterServiceRef = new AtomicReference<>();
+        Set<WorkerService> workerServices = Sets.newConcurrentHashSet();
         pool.submit(() -> {
             WorkerService workerService = null;
             try {
@@ -74,7 +78,7 @@ public class AlgorithmTestBase extends UnitTestBase {
                 }
                 Config config = ComputerContextUtil.initContext(params);
                 workerService = new MockWorkerService();
-
+                workerServices.add(workerService);
                 workerService.init(config);
                 workerService.execute();
             } catch (Throwable e) {
@@ -85,9 +89,6 @@ public class AlgorithmTestBase extends UnitTestBase {
                     countDownLatch.countDown();
                 }
             } finally {
-                if (workerService != null) {
-                    workerService.close();
-                }
                 countDownLatch.countDown();
             }
         });
@@ -119,7 +120,7 @@ public class AlgorithmTestBase extends UnitTestBase {
                 Config config = ComputerContextUtil.initContext(params);
 
                 masterService = new MasterService();
-
+                masterServiceRef.set(masterService);
                 masterService.init(config);
                 masterService.execute();
             } catch (Throwable e) {
@@ -130,19 +131,18 @@ public class AlgorithmTestBase extends UnitTestBase {
                     countDownLatch.countDown();
                 }
             } finally {
-                /*
-                 * It must close the service first. The pool will be shutdown
-                 * if count down is executed first, and the server thread in
-                 * master service will not be closed.
-                 */
-                if (masterService != null) {
-                    masterService.close();
-                }
                 countDownLatch.countDown();
             }
         });
 
-        countDownLatch.await();
+        try {
+            countDownLatch.await();
+        } finally {
+            for (WorkerService workerService : workerServices) {
+                workerService.close();
+            }
+            masterServiceRef.get().close();
+        }
         pool.shutdownNow();
 
         Assert.assertFalse(Arrays.asList(exceptions).toString(),

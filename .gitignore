@@ -11,6 +11,7 @@ build
 **/dependency-reduced-pom.xml
 dist.sh
 .github/
+*.flattened-pom.xml
 
 ### STS ###
 .apt_generated
