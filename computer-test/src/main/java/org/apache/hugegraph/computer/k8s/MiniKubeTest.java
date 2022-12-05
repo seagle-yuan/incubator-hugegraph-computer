@@ -1,5 +1,4 @@
 /*
- * Copyright 2017 HugeGraph Authors
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with this
@@ -250,6 +249,8 @@ public class MiniKubeTest extends AbstractK8sTest {
                .onJobStateChanged(Mockito.eq(jobState));
 
         this.driver.cancelJob(jobId, params);
+
+        UnitTestBase.sleep(1500L);
 
         DefaultJobState jobState2 = new DefaultJobState();
         jobState2.jobStatus(JobStatus.CANCELLED);

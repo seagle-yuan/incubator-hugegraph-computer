@@ -1,5 +1,4 @@
 /*
- * Copyright 2017 HugeGraph Authors
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with this
@@ -157,7 +156,7 @@ public class WorkerService implements Closeable {
      * {@link #init(Config)}.
      */
     @Override
-    public void close() {
+    public synchronized void close() {
         this.checkInited();
         if (this.closed) {
             LOG.info("{} WorkerService had closed before", this);
